@@ -5,3 +5,4 @@ __pycache__/
 models/
 *.mp3
 *.txt
+.DS_Store
