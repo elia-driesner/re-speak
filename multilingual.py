@@ -68,8 +68,15 @@ class SpeakerMultilingual:
         return self._recursive_split(text, self.max_chunk_size)
 
     def _tts_to_wav(self, text: str, out_path: str):
+        text = text.strip()
+        if not text:
+            # Write short silence so combine order is preserved
+            sf.write(out_path, np.zeros(self.sample_rate // 10, dtype=np.float32), self.sample_rate)
+            return
         inputs = self.tokenizer(text, return_tensors="pt").to(self.device)
-
+        if inputs["input_ids"].numel() == 0:
+            sf.write(out_path, np.zeros(self.sample_rate // 10, dtype=np.float32), self.sample_rate)
+            return
         with torch.no_grad():
             waveform = self.model(**inputs).waveform
 
@@ -108,6 +115,9 @@ class SpeakerMultilingual:
 
     def translate_transcript(self, filename: str):
         chunks = self._chunk_transcript(f"{filename}_{target_language}")
+        chunks = [c for c in chunks if c.strip()]
+        if not chunks:
+            raise ValueError("No non-empty text to speak in the translated transcript.")
         os.makedirs(f"{tmp_path}{filename}", exist_ok=True)
 
         for i, chunk in enumerate(chunks):
