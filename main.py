@@ -1,4 +1,5 @@
 from faster_whisper import WhisperModel
+import gc
 import os
 import shutil
 import ollama
@@ -8,20 +9,17 @@ import glob
 from pydub import AudioSegment
 from TTS.api import TTS
 
+from multilingual import SpeakerMultilingual
+from constants import *
 from dotenv import load_dotenv
 load_dotenv()
-
-audio_path = "./audio/"
-model_cache = './.models'
-tmp_path = "./.tmp/"
-translated_audio_path = "./translated_audio/"
-transcript_path = "./transcripts/"
 
 os.makedirs(translated_audio_path, exist_ok=True)
 os.makedirs(transcript_path, exist_ok=True)
 os.makedirs(tmp_path, exist_ok=True)
 
 target_language = os.getenv("TARGET_LANGUAGE", "en")
+voice_cloning_enabled = os.getenv("VOICE_CLONING", "false")
 
 class Transcriber:
     def __init__(self):
@@ -50,7 +48,7 @@ class Transcriber:
         
         # use vad_filter to remove silence from the audio
         segments, info = self.model.transcribe(
-            full_path, 
+            full_path,
             vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=500)
         )
@@ -83,13 +81,14 @@ class Translator:
     def __init__(self):
         self.model_name = "qwen2.5:14b"
         self.client = ollama.Client()
-        self.max_chunk_size = 1000
+        self.max_chunk_size = 1500
         print(f"Selected ollama model: {self.model_name} and max chunk size: {self.max_chunk_size}")
 
         self.system_instruction = (
             f"You are a professional dubbing translator. Translate the text into {target_language}. "
             "Do not explain your translation. Do not add notes. Do not translate the context. "
             "Output ONLY the translated text for the target section."
+            "Translate sentence by sentence, preserve meaning exactly. Do NOT paraphrase and do NOT simplify theology"
         )
 
     def _chunk_text(self, transcript_filename: str) -> list[str]:
@@ -169,12 +168,7 @@ class Speaker:
 
     def _recursive_split(self, text, max_chars):
         """
-        Recursively splits text. 
-        Priority:
-        1. Sentences (. ! ?)
-        2. Clauses (; : ,)
-        3. Words (space)
-        4. Hard Cut
+        Recursively splits text. Into as small chunks as possible.
         """
         if len(text) <= max_chars:
             return [text]
@@ -209,6 +203,9 @@ class Speaker:
             return final_chunks
 
     def _chunk_transcript(self, transcript_filename: str):
+        """
+        Ready the transcript file and returns its content split into chunks
+        """
         with open(f"{transcript_path}{transcript_filename}.txt", "r") as f:
             transcript = f.read()
         chunks = self._recursive_split(transcript, self.max_chunk_size)
@@ -218,6 +215,9 @@ class Speaker:
         self,
         filename: str,
     ):
+        """
+        Combine the wav files into a single mp3 file
+        """
         pattern = f"{tmp_path}{filename}/{filename}_{target_language}_*.wav"
         wav_files = sorted(glob.glob(pattern))
 
@@ -248,6 +248,9 @@ class Speaker:
         os.remove(f"{tmp_path}temp_voice_ref.wav")
 
     def translate_transcript(self, filename: str):
+        """
+        Translate the transcript file and save the translated audio file
+        """
         chunks = self._chunk_transcript(f"{filename}_{target_language}")
         refrenceClip = self._extract_reference_clip(f"{audio_path}{filename}.mp3")
         os.makedirs(f"{tmp_path}{filename}", exist_ok=True)
@@ -259,11 +262,27 @@ class Speaker:
         self._combine_wavs(filename)
         self._cleanup(filename)
 
+
+def _free_model(obj):
+    """Delete object and run GC so heavy models can be freed from RAM."""
+    del obj
+    gc.collect()
+
+
 if __name__ == "__main__":
     filename = "#016 Joh 4,13-14 Nur Jesus gibt lebendiges Wasser (Samuel Driesner)"
     transcriber = Transcriber()
     transcriber.create_transcript(filename)
+    _free_model(transcriber)
+
     translator = Translator()
     translator.translate_transcript(filename)
-    speaker = Speaker()
+    _free_model(translator)
+
+    if voice_cloning_enabled == "true":
+        speaker = Speaker()
+    else:
+        speaker = SpeakerMultilingual()
+
     speaker.translate_transcript(filename)
+    _free_model(speaker)
