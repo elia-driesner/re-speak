@@ -71,4 +71,10 @@ python main.py
 
 First run will download these; later runs use the cache.
 
+---
+
+## Performance
+
+Trasncription, translation and generating the mp3 took about **1.6× the duration of the audio** in testing (e.g. 10 minutes of audio → ~16 minutes to translate)
+
 
