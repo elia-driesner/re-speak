@@ -271,8 +271,8 @@ def _free_model(obj):
 
 
 if __name__ == "__main__":
-    filename = "01"
-    download_youtube_audio("https://www.youtube.com/live/izFT4JBKxS0", audio_path, filename)
+    link = "https://www.youtube.com/..."
+    filename = download_youtube_audio(link, audio_path)
 
     transcriber = Transcriber()
     transcriber.create_transcript(filename)
@@ -287,5 +287,5 @@ if __name__ == "__main__":
     else:
         speaker = SpeakerMultilingual()
 
-    speaker.translate_transcript(filename)
+    speaker.translate_transcript("01")
     _free_model(speaker)
