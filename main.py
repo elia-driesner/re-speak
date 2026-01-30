@@ -271,7 +271,7 @@ def _free_model(obj):
 
 
 if __name__ == "__main__":
-    link = "https://www.youtube.com/..."
+    link = input("Enter the YouTube URL: ")
     filename = download_youtube_audio(link, audio_path)
 
     transcriber = Transcriber()
