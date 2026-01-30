@@ -9,6 +9,7 @@ import glob
 from pydub import AudioSegment
 from TTS.api import TTS
 
+from youtube_downloader import download_youtube_audio
 from multilingual import SpeakerMultilingual
 from constants import *
 from dotenv import load_dotenv
@@ -270,7 +271,9 @@ def _free_model(obj):
 
 
 if __name__ == "__main__":
-    filename = "#016 Joh 4,13-14 Nur Jesus gibt lebendiges Wasser (Samuel Driesner)"
+    filename = "01"
+    download_youtube_audio("https://www.youtube.com/live/izFT4JBKxS0", audio_path, filename)
+
     transcriber = Transcriber()
     transcriber.create_transcript(filename)
     _free_model(transcriber)
