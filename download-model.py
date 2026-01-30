@@ -1,7 +1,7 @@
 import os
 from faster_whisper import download_model
 
-model_cache_dir = os.getenv("MODEL_CACHE_DIR", "./models")
+model_cache_dir = os.getenv("MODEL_CACHE_DIR", "./.models")
 model_type = os.getenv('WHISPER_MODEL', 'large-v3')
 
 def preload_models():
